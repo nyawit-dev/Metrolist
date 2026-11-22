@@ -1127,6 +1127,11 @@ fun MetrolistApp(
                     val contentObscured by remember(playerBottomSheetState) {
                         derivedStateOf { playerBackgroundOpaque && playerBottomSheetState.isSettledExpanded }
                     }
+                    // The screen underneath is cached as a texture while the sheet moves. Looping animations inside it
+                    // would invalidate that cache and re-render the whole screen on every frame of the drag.
+                    val playerSheetInMotion by remember(playerBottomSheetState) {
+                        derivedStateOf { playerBottomSheetState.progress > 0f && !playerBottomSheetState.isSettledExpanded }
+                    }
                     val libraryNeeded =
                         currentRoute == Screen.Library || (currentRoute is Screen.Playlist && isHistoryPlaylistId(currentRoute.id))
                     val libraryActive = libraryNeeded && !contentObscured && !isInPipMode
@@ -1400,7 +1405,7 @@ fun MetrolistApp(
                                 }
                             }
                         CompositionLocalProvider(
-                            LocalContentObscured provides (isInPipMode || contentObscured),
+                            LocalContentObscured provides (isInPipMode || contentObscured || playerSheetInMotion),
                             LocalFloatingNavBar provides useFloatingNavBar,
                             LocalPlayerExpanded provides isPlayerExpanded,
                             LocalPlayerExpandedOrExpanding provides isPlayerExpandedOrExpanding,

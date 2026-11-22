@@ -49,9 +49,18 @@ internal data class PlayerSheetContainerStyle(
 ) {
     fun shape(progress: Float): Shape {
         val radius = cornerRadius * (1f - progress.coerceIn(0f, 1f))
-        return if (expressive) ExpressiveMiniPlayerShape(radius) else RoundedCornerShape(radius)
+        // The expressive outline is a Bezier path rebuilt for every frame, and a path clip is the most expensive clip
+        // the render thread has to apply to the full-screen player. Past the first fifth of the travel the corner
+        // radius is already small, so a plain rounded rectangle (a fast, allocation-free clip) is used instead.
+        return if (expressive && progress <= EXPRESSIVE_SHAPE_MAX_PROGRESS) {
+            ExpressiveMiniPlayerShape(radius)
+        } else {
+            RoundedCornerShape(radius)
+        }
     }
 }
+
+private const val EXPRESSIVE_SHAPE_MAX_PROGRESS = 0.2f
 
 @Composable
 fun PlayerSheetSurface(
