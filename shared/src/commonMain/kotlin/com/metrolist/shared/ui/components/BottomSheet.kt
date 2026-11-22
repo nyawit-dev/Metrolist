@@ -57,9 +57,7 @@ import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.input.pointer.util.VelocityTracker
-import androidx.compose.ui.input.pointer.util.addPointerInputChange
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
@@ -77,6 +75,7 @@ import com.metrolist.shared.ui.player.LocalPlayerArtworkHandoff
 import com.metrolist.shared.ui.player.PlayerArtworkHandoff
 import com.metrolist.shared.ui.theme.uiEnhanced
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlin.math.abs
@@ -213,6 +212,14 @@ fun BottomSheet(
     val currentPrepareDismissal by rememberUpdatedState(prepareDismissal)
 
     val isOpening by remember(state) { derivedStateOf { state.progress > 0f } }
+    val currentExpandedAlpha by rememberUpdatedState(expandedAlpha)
+    val currentMiniPlayerAlpha by rememberUpdatedState(miniPlayerAlpha)
+    val placesExpandedContent by remember(state) {
+        derivedStateOf { !state.isCollapsed && !state.isDismissed && currentExpandedAlpha(state.progress) > 0f }
+    }
+    val showsCollapsedContent by remember(state) {
+        derivedStateOf { !state.isExpanded && currentMiniPlayerAlpha(state.progress) > 0f }
+    }
     val handlesBack by remember(state) { derivedStateOf { state.progress > 0.2f && !state.isDismissed } }
     val backProgress =
         if (predictiveBack) {
@@ -229,6 +236,8 @@ fun BottomSheet(
         }
     }
 
+    val appliedTranslationY = remember { floatArrayOf(0f) }
+
     val dragGestureModifier =
         if (isExpandable) {
             Modifier.pointerInput(state) {
@@ -244,6 +253,7 @@ fun BottomSheet(
                     val onDismiss = currentPrepareDismissal?.invoke()
                     velocityTracker.resetTracking()
                     var verticalGesture: Boolean? = null
+                    var lastY = down.position.y + appliedTranslationY[0]
                     val drag =
                         awaitTouchSlopOrCancellation(down.id) { change, overSlop ->
                             if (verticalGesture == null) {
@@ -253,9 +263,11 @@ fun BottomSheet(
                             if (verticalGesture == true) {
                                 focusManager.clearFocus(force = true)
                                 keyboardController?.hide()
-                                velocityTracker.addPointerInputChange(change)
+                                val y = change.position.y + appliedTranslationY[0]
+                                velocityTracker.addPosition(change.uptimeMillis, Offset(0f, y))
                                 change.consume()
                                 state.dispatchRawDelta(overSlop.y)
+                                lastY = y
                             }
                         } ?: return@awaitEachGesture
                     state.isDragging = true
@@ -263,8 +275,10 @@ fun BottomSheet(
                     try {
                         completed =
                             verticalDrag(drag.id) { change ->
-                                velocityTracker.addPointerInputChange(change)
-                                state.dispatchRawDelta(change.positionChange().y)
+                                val y = change.position.y + appliedTranslationY[0]
+                                velocityTracker.addPosition(change.uptimeMillis, Offset(0f, y))
+                                state.dispatchRawDelta(y - lastY)
+                                lastY = y
                                 change.consume()
                             }
                     } finally {
@@ -308,6 +322,7 @@ fun BottomSheet(
                             .toPx()
                             .coerceAtLeast(0f)
                     translationY = y
+                    appliedTranslationY[0] = y
                     val bounds = container?.bounds
                     val style = container?.style
                     shape =
@@ -347,7 +362,6 @@ fun BottomSheet(
                         val color = if (style != null) lerp(style.color.copy(alpha = 1f), expandedColor, progress) else expandedColor
                         drawOutline(outline, color)
                     }
-                    // The graphicsLayer above already clips to this outline; clipping again doubles the path mask cost.
                     drawContent()
                     if (style?.border != null && bounds != null && progress < 1f) {
                         drawOutline(outline, style.border.brush, alpha = 1f - progress, style = Stroke(style.border.width.toPx() * 2f))
@@ -365,7 +379,7 @@ fun BottomSheet(
                         .layout { measurable, constraints ->
                             val placeable = measurable.measure(constraints)
                             layout(placeable.width, placeable.height) {
-                                if (!state.isCollapsed && !state.isDismissed && expandedAlpha(state.progress) > 0f) {
+                                if (placesExpandedContent) {
                                     placeable.placeRelative(0, 0)
                                 }
                             }
@@ -398,7 +412,7 @@ fun BottomSheet(
                     .layout { measurable, constraints ->
                         val placeable = measurable.measure(constraints)
                         layout(placeable.width, placeable.height) {
-                            if (!state.isExpanded && miniPlayerAlpha(state.progress) > 0f) {
+                            if (showsCollapsedContent) {
                                 placeable.placeRelative(0, 0)
                             } else if (morphCollapsedContainer) {
                                 placeable.placeRelativeWithLayer(0, 0) {
@@ -408,10 +422,10 @@ fun BottomSheet(
                             }
                         }
                     }.focusProperties {
-                        onEnter = { if (state.isExpanded || miniPlayerAlpha(state.progress) <= 0f) cancelFocusChange() }
+                        onEnter = { if (!showsCollapsedContent) cancelFocusChange() }
                     }.focusGroup()
                     .semantics {
-                        if (state.isExpanded || miniPlayerAlpha(state.progress) <= 0f) hideFromAccessibility()
+                        if (!showsCollapsedContent) hideFromAccessibility()
                     }.graphicsLayer {
                         compositingStrategy = if (morphCollapsedContainer) fadeStrategy else CompositingStrategy.ModulateAlpha
                         alpha = miniPlayerAlpha(state.progress).coerceIn(0f, 1f)
@@ -537,7 +551,6 @@ class BottomSheetState(
         }
     }
 
-    // Animatable bounds are not snapshot state; mirror them so layers and progress follow resizes.
     var dismissedBound by mutableStateOf(animatable.lowerBound ?: 0.dp)
         private set
 
@@ -726,7 +739,6 @@ class BottomSheetState(
             ): Velocity {
                 isDragging = false
                 isTopReached = false
-                // onPreFling already chose the anchor; settling again can reverse that animation.
                 return Velocity.Zero
             }
         }
@@ -776,7 +788,7 @@ fun rememberBottomSheetState(
             BottomSheetState(
                 draggableState =
                     DraggableState { delta ->
-                        coroutineScope.launch {
+                        coroutineScope.launch(start = CoroutineStart.UNDISPATCHED) {
                             animatable.snapTo(animatable.value - with(currentDensity) { delta.toDp() })
                         }
                     },
