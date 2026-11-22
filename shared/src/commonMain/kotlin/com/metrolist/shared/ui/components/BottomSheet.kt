@@ -466,6 +466,7 @@ class BottomSheetState(
     initialAnchor: Int = DISMISSED_ANCHOR,
     private val spatialSpec: AnimationSpec<Dp>,
     private val isDismissible: Boolean = true,
+    private val density: () -> Density = { Density(1f) },
 ) : DraggableState by draggableState {
     var collapsedBound by mutableStateOf(initialCollapsedBound)
         private set
@@ -575,28 +576,34 @@ class BottomSheetState(
         if (expandedBound > collapsedBound) (value - collapsedBound) / (expandedBound - collapsedBound) else 0f
     }
 
-    fun collapse(animationSpec: AnimationSpec<Dp>): Job {
+    fun collapse(
+        animationSpec: AnimationSpec<Dp>,
+        initialVelocity: Dp = 0.dp,
+    ): Job {
         onDismissComplete = null
         changeAnchor(COLLAPSED_ANCHOR)
         return coroutineScope.launch {
-            animatable.animateTo(collapsedBound, animationSpec)
+            animatable.animateTo(collapsedBound, animationSpec, initialVelocity)
         }
     }
 
-    fun expand(animationSpec: AnimationSpec<Dp>) {
+    fun expand(
+        animationSpec: AnimationSpec<Dp>,
+        initialVelocity: Dp = 0.dp,
+    ) {
         onDismissComplete = null
         changeAnchor(EXPANDED_ANCHOR)
         coroutineScope.launch {
-            animatable.upperBound?.let { animatable.animateTo(it, animationSpec) }
+            animatable.upperBound?.let { animatable.animateTo(it, animationSpec, initialVelocity) }
         }
     }
 
-    private fun collapse() {
-        collapse(spatialSpec)
+    private fun collapse(initialVelocity: Dp = 0.dp) {
+        collapse(spatialSpec, initialVelocity)
     }
 
-    private fun expand() {
-        expand(spatialSpec)
+    private fun expand(initialVelocity: Dp = 0.dp) {
+        expand(spatialSpec, initialVelocity)
     }
 
     fun collapseSoft() {
@@ -607,16 +614,19 @@ class BottomSheetState(
         expand(spatialSpec)
     }
 
-    fun dismiss(onComplete: (() -> Unit)? = null) {
+    fun dismiss(
+        onComplete: (() -> Unit)? = null,
+        initialVelocity: Dp = 0.dp,
+    ) {
         if (!isDismissible) {
-            collapseSoft()
+            collapse(initialVelocity)
             return
         }
         onDismissComplete = onComplete
         changeAnchor(DISMISSED_ANCHOR)
         coroutineScope.launch {
             animatable.lowerBound?.let {
-                animatable.animateTo(it, spatialSpec)
+                animatable.animateTo(it, spatialSpec, initialVelocity)
                 completeDismissal()
             }
         }
@@ -646,13 +656,14 @@ class BottomSheetState(
         velocity: Float,
         onDismiss: (() -> Unit)?,
     ) {
+        val sheetVelocity = with(density()) { velocity.toDp() }
         if (velocity > 250) {
-            expand()
+            expand(sheetVelocity)
         } else if (velocity < -250) {
             if (value < collapsedBound && onDismiss != null) {
-                dismiss(onDismiss)
+                dismiss(onDismiss, sheetVelocity)
             } else {
-                collapse()
+                collapse(sheetVelocity)
             }
         } else {
             val dismissThreshold = dismissedBound + (collapsedBound - dismissedBound) / 2
@@ -661,18 +672,18 @@ class BottomSheetState(
             when {
                 value < dismissThreshold -> {
                     if (onDismiss != null) {
-                        dismiss(onDismiss)
+                        dismiss(onDismiss, sheetVelocity)
                     } else {
-                        collapse()
+                        collapse(sheetVelocity)
                     }
                 }
 
                 value < expandThreshold -> {
-                    collapse()
+                    collapse(sheetVelocity)
                 }
 
                 else -> {
-                    expand()
+                    expand(sheetVelocity)
                 }
             }
         }
@@ -799,6 +810,7 @@ fun rememberBottomSheetState(
                 initialAnchor = previousAnchor,
                 spatialSpec = spatialSpec,
                 isDismissible = isDismissible,
+                density = { currentDensity },
             )
         }
     LaunchedEffect(state, dismissedBound, expandedBound, collapsedBound) {
