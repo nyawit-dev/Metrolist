@@ -2322,7 +2322,10 @@ fun PlayerScreen(
                                 isDraggableWhenCollapsed = true,
                                 collapsedContentAlpha = { progress -> (1f - progress * 5f).coerceIn(0f, 1f) },
                                 contentAlpha = { progress -> ((progress - 0.2f) * 4f).coerceIn(0f, 1f) },
-                                preserveContentWhenCollapsed = false,
+                                // Composing the queue once the player has settled keeps that work out of the open gesture.
+                                // Otherwise the whole list is composed, measured and scrolled to the current song on the first
+                                // frame of the drag. The content stays unplaced and undrawn while the sheet is collapsed.
+                                preserveContentWhenCollapsed = playerContentState.isActive,
                                 background = {
                                     if (queueOpen) {
                                         Box(
