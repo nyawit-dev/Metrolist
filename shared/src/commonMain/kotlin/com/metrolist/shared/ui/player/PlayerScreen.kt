@@ -130,7 +130,6 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.LayoutCoordinates
-import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.layout.onSizeChanged
@@ -2400,21 +2399,19 @@ fun PlayerScreen(
                                     shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
                                     color = MaterialTheme.colorScheme.surfaceContainerLow,
                                 ) {
-                                    Column(modifier = Modifier.fillMaxSize().sheetBackContent()) {
-                                        Spacer(
-                                            modifier =
-                                                Modifier.layout { _, constraints ->
-                                                    val height =
-                                                        (
-                                                            queueSheetTopPadding.toPx() *
-                                                                queueSheetState.progress.coerceIn(
-                                                                    0f,
-                                                                    1f,
-                                                                )
-                                                        ).toInt()
-                                                    layout(constraints.minWidth, height) {}
-                                                },
-                                        )
+                                    // The top inset grows with the sheet. Resizing a spacer for it re-measured the whole queue list on
+                                    // every frame of a drag, so the inset is fixed and the content is moved with a layer offset instead.
+                                    Column(
+                                        modifier =
+                                            Modifier
+                                                .fillMaxSize()
+                                                .graphicsLayer {
+                                                    translationY =
+                                                        -queueSheetTopPadding.toPx() *
+                                                        (1f - queueSheetState.progress.coerceIn(0f, 1f))
+                                                }.sheetBackContent(),
+                                    ) {
+                                        Spacer(modifier = Modifier.height(queueSheetTopPadding))
                                         QueueSheetDragHandle(
                                             modifier =
                                                 Modifier
