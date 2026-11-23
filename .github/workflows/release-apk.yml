@@ -1,0 +1,72 @@
+name: Release APK (manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag, e.g. v1.0.0'
+        required: true
+        default: 'v1.0.0'
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-apk-manual
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Accept SDK licenses
+        run: yes | /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager --licenses
+
+      - name: Prepare ephemeral signing
+        shell: bash
+        run: |
+          KEYSTORE="$RUNNER_TEMP/nyawit-release.jks"
+          keytool -genkeypair -v -keystore "$KEYSTORE" \
+            -storepass nyawitmusic -keypass nyawitmusic \
+            -alias nyawit -keyalg RSA -keysize 2048 -validity 10000 \
+            -dname "CN=Nyawit Music, OU=Nyawit, O=Nyawit, L=Indonesia, C=ID" >/dev/null 2>&1
+          echo "KEYSTORE_PATH=$KEYSTORE" >> "$GITHUB_ENV"
+          echo "KEYSTORE_PASSWORD=nyawitmusic" >> "$GITHUB_ENV"
+          echo "KEY_ALIAS=nyawit" >> "$GITHUB_ENV"
+          echo "KEY_PASSWORD=nyawitmusic" >> "$GITHUB_ENV"
+
+      - name: Assemble release APK
+        shell: bash
+        run: ./gradlew --no-daemon :androidApp:assembleRelease -DskipFormatKtlint --stacktrace
+
+      - name: Collect APKs
+        id: apk
+        shell: bash
+        run: |
+          mkdir -p dist
+          find androidApp/build/outputs/apk -type f -name '*.apk' -exec cp {} dist/ \;
+          COUNT=$(find dist -name '*.apk' | wc -l)
+          echo "count=$COUNT" >> "$GITHUB_OUTPUT"
+          test "$COUNT" -gt 0 || { echo "::error::No release APK produced"; exit 1; }
+          ls -lh dist/
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.tag }}
+          target_commitish: ${{ github.sha }}
+          files: dist/*.apk
+          generate_release_notes: true
+          fail_on_unmatched_files: true
