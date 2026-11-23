@@ -1,0 +1,98 @@
+name: Sync upstream main
+
+# Periodically fold MetrolistGroup/Metrolist main into our main.
+# Local branding wins any conflicting hunks; non-conflicting upstream
+# changes are still merged in. A guard aborts the push if the streaming
+# files/dependencies this fork relies on disappear after the merge.
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-upstream-main
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: Merge upstream main into local main
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Capture pre-merge HEAD
+        id: pre
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Fetch upstream main
+        run: |
+          git fetch --no-tags https://github.com/MetrolistGroup/Metrolist.git main
+
+      - name: Merge upstream with branding winning conflicts
+        run: |
+          # -X ours: keep our (branding) side on conflicting hunks.
+          git merge -X ours --no-edit FETCH_HEAD
+
+      - name: Guard - required streaming files and dependencies
+        run: |
+          set -euo pipefail
+          missing=0
+
+          # Streaming source files that must survive the merge.
+          for f in \
+            "shared/src/commonMain/kotlin/com/metrolist/shared/youtube/playback/DefaultStreamResolver.kt" \
+            "shared/src/commonMain/kotlin/com/metrolist/shared/youtube/playback/SabrPlaybackStreams.kt" \
+            "shared/src/commonMain/kotlin/com/metrolist/shared/youtube/playback/SabrStreamingToken.kt" \
+            "shared/src/commonMain/kotlin/com/metrolist/shared/playback/TokenlessStreamRenewal.kt" \
+            "shared/src/androidMain/kotlin/com/metrolist/shared/youtube/playback/BotGuardPoTokenMinter.kt" \
+            "androidApp/src/main/assets/po_token.html"; do
+            if [ ! -f "$f" ]; then
+              echo "::error::Missing required streaming file after merge: $f"
+              missing=1
+            fi
+          done
+
+          check_marker() {
+            file="$1"; pattern="$2"; label="$3"
+            if [ ! -f "$file" ] || ! grep -qF -- "$pattern" "$file"; then
+              echo "::error::Missing streaming dependency ($label) in $file"
+              missing=1
+            fi
+          }
+          check_marker "shared/build.gradle.kts" "com.github.MetrolistGroup.innertubex:innertubex" "innertubex streaming client"
+          check_marker "gradle/libs.versions.toml" "media3-exoplayer-hls" "media3 HLS playback"
+          check_marker ".gitmodules" "MetrolistGroup/metroproto" "metroproto streaming protobuf submodule"
+
+          if [ "$missing" -ne 0 ]; then
+            echo "::error::Guard failed - required streaming files/dependencies missing; aborting push."
+            exit 1
+          fi
+          echo "Guard passed: streaming files and dependencies intact."
+
+      - name: Push main only when HEAD changed
+        env:
+          PRE_SHA: ${{ steps.pre.outputs.sha }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          after="$(git rev-parse HEAD)"
+          if [ "$after" = "$PRE_SHA" ]; then
+            echo "No upstream changes merged; skipping push."
+            exit 0
+          fi
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
+          git push origin HEAD:main
