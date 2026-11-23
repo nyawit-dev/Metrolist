@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Nyawit Music launcher foreground, authored for this fork. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="@color/ic_launcher_nyawit_glyph"
+        android:pathData="M40,73 C33,73 27,68 27,61 C27,54 33,49 40,49 C47,49 53,54 53,61 C53,68 47,73 40,73 Z" />
+    <path
+        android:fillColor="@color/ic_launcher_nyawit_glyph"
+        android:pathData="M50,66 L58,66 L58,28 L50,28 Z" />
+    <path
+        android:fillColor="@color/ic_launcher_nyawit_glyph"
+        android:pathData="M58,28 C72,34 80,45 80,59 C80,64 79,68 77,72 C77,57 70,47 58,43 Z" />
+</vector>
