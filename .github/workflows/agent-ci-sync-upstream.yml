@@ -1,0 +1,108 @@
+name: Agent CI Sync Upstream
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: agent-ci-sync-upstream
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: Merge upstream main (branding wins) and push if changed
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - name: Check out fork main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Configure git identity
+        shell: bash
+        run: |
+          git config user.name "agent-ci[bot]"
+          git config user.email "agent-ci[bot]@users.noreply.github.com"
+
+      - name: Fetch upstream main
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git remote get-url upstream >/dev/null 2>&1; then
+            git remote set-url upstream https://github.com/MetrolistGroup/Metrolist.git
+          else
+            git remote add upstream https://github.com/MetrolistGroup/Metrolist.git
+          fi
+          git fetch --no-tags upstream main
+          echo "Fetched upstream main: $(git rev-parse FETCH_HEAD)"
+
+      - name: Merge upstream with ours-wins conflict resolution
+        id: merge
+        shell: bash
+        run: |
+          set -euo pipefail
+          before="$(git rev-parse HEAD)"
+          if git merge -X ours --no-edit FETCH_HEAD; then
+            echo "Merge completed; resolving guard checks."
+          else
+            echo "git merge failed; aborting without pushing." >&2
+            git merge --abort || true
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+
+          # Guard: never let a sync remove or disable upstream streaming features.
+          required_files=(
+            "shared/build.gradle.kts"
+            "gradle/libs.versions.toml"
+            "gradle.properties"
+            "shared/src/commonMain/kotlin/com/metrolist/shared/api/YouTubeRepository.kt"
+            "shared/src/commonMain/kotlin/com/metrolist/shared/playback/TokenlessStreamRenewal.kt"
+            "androidApp/src/main/kotlin/com/metrolist/android/playback/ExoPlaybackPlayer.kt"
+          )
+          for file in "${required_files[@]}"; do
+            if [ ! -s "$file" ]; then
+              echo "::error::Sync removed or emptied an upstream streaming file: $file" >&2
+              git merge --abort || true
+              echo "changed=false" >> "$GITHUB_OUTPUT"
+              exit 1
+            fi
+          done
+          if ! grep -q "com.github.MetrolistGroup.innertubex" shared/build.gradle.kts; then
+            echo "::error::Sync removed the InnerTubeX streaming dependency" >&2
+            git merge --abort || true
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+          if ! grep -q "media3-exoplayer" gradle/libs.versions.toml; then
+            echo "::error::Sync removed the Media3 streaming dependency" >&2
+            git merge --abort || true
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+
+          after="$(git rev-parse HEAD)"
+          if [ "$before" != "$after" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "Merge created a new commit: $after"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Already up to date; nothing to push."
+          fi
+
+      - name: Push merged main when changed
+        if: steps.merge.outputs.changed == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git push origin HEAD:main
+          echo "Pushed upstream changes into fork main."
