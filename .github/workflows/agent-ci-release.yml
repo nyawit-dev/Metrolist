@@ -1,0 +1,144 @@
+name: Agent CI Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to publish when triggered manually'
+        required: true
+        default: 'v0.0.0-ci'
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: agent-ci-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build and publish APKs
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: write
+    steps:
+      - name: Check out repository with submodules
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4
+
+      - name: Accept Android SDK licenses
+        shell: bash
+        run: |
+          set +e
+          sdkmanager_bin="${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$sdkmanager_bin" ]; then
+            sdkmanager_bin="$(command -v sdkmanager 2>/dev/null)"
+          fi
+          if [ -n "$sdkmanager_bin" ] && [ -x "$sdkmanager_bin" ]; then
+            yes | "$sdkmanager_bin" --licenses >/dev/null 2>&1
+            echo "Android SDK licenses accepted."
+          else
+            echo "sdkmanager unavailable; relying on runner preinstalled licenses."
+          fi
+          exit 0
+
+      - name: Generate ephemeral signing keystore (no secrets)
+        shell: bash
+        run: |
+          set -euo pipefail
+          keystore="${RUNNER_TEMP}/metrolist-ci-release.keystore"
+          password="metrolist-ci-keystore"
+          alias_name="metrolist"
+          keytool -genkeypair -v \
+            -keystore "$keystore" \
+            -alias "$alias_name" \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -storepass "$password" \
+            -keypass "$password" \
+            -dname "CN=Metrolist CI, OU=CI, O=Metrolist, L=NA, ST=NA, C=US"
+          {
+            echo "KEYSTORE_PATH=$keystore"
+            echo "KEYSTORE_PASSWORD=$password"
+            echo "KEY_ALIAS=$alias_name"
+            echo "KEY_PASSWORD=$password"
+          } >> "$GITHUB_ENV"
+          echo "Ephemeral keystore generated at $keystore"
+
+      - name: Make Gradle wrapper executable
+        run: chmod +x ./gradlew
+
+      - name: Assemble signed release APK variants (lint excluded)
+        shell: bash
+        env:
+          CI: 'true'
+        run: |
+          set -euo pipefail
+          ./gradlew \
+            :androidApp:assembleRelease \
+            :androidApp:assembleIzzy \
+            -x :androidApp:lintVitalRelease \
+            -x :androidApp:lintVitalIzzy \
+            --no-daemon \
+            --no-configuration-cache \
+            --max-workers=4 \
+            "-Dorg.gradle.jvmargs=-Xmx6g -XX:MaxMetaspaceSize=1g -Dfile.encoding=UTF-8"
+
+      - name: Collect all APK variants
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          if [ -d androidApp/build/outputs/apk ]; then
+            find androidApp/build/outputs/apk -type f -name '*.apk' -print0 |
+              while IFS= read -r -d '' apk; do
+                variant="$(basename "$(dirname "$apk")")"
+                cp "$apk" "dist/${variant}-$(basename "$apk")"
+              done
+          fi
+          ls -lh dist
+
+      - name: Verify APK signatures
+        shell: bash
+        run: |
+          set -euo pipefail
+          signer=""
+          for candidate in "$ANDROID_HOME"/build-tools/*/apksigner; do
+            if [ -x "$candidate" ]; then
+              signer="$candidate"
+            fi
+          done
+          test -n "$signer" || { echo "apksigner not found" >&2; exit 1; }
+          for apk in dist/*.apk; do
+            "$signer" verify "$apk"
+          done
+          echo "All APK variants are signed with the ephemeral key."
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+          name: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+          target_commitish: ${{ github.sha }}
+          files: dist/*.apk
+          fail_on_unmatched_files: true
+          generate_release_notes: true
+          prerelease: ${{ github.event_name == 'workflow_dispatch' }}
