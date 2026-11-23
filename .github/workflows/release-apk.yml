@@ -38,14 +38,15 @@ jobs:
         shell: bash
         run: |
           KEYSTORE="$RUNNER_TEMP/nyawit-release.jks"
+          STORE_PASS="$(openssl rand -base64 24)"
           keytool -genkeypair -v -keystore "$KEYSTORE" \
-            -storepass nyawitmusic -keypass nyawitmusic \
+            -storepass "$STORE_PASS" -keypass "$STORE_PASS" \
             -alias nyawit -keyalg RSA -keysize 2048 -validity 10000 \
             -dname "CN=Nyawit Music, OU=Nyawit, O=Nyawit, L=Indonesia, C=ID" >/dev/null 2>&1
           echo "KEYSTORE_PATH=$KEYSTORE" >> "$GITHUB_ENV"
-          echo "KEYSTORE_PASSWORD=nyawitmusic" >> "$GITHUB_ENV"
+          echo "KEYSTORE_PASSWORD=$STORE_PASS" >> "$GITHUB_ENV"
           echo "KEY_ALIAS=nyawit" >> "$GITHUB_ENV"
-          echo "KEY_PASSWORD=nyawitmusic" >> "$GITHUB_ENV"
+          echo "KEY_PASSWORD=$STORE_PASS" >> "$GITHUB_ENV"
 
       - name: Assemble release APK
         shell: bash
