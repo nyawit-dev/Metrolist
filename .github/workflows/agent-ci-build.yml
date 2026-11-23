@@ -1,0 +1,121 @@
+name: Agent CI Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: agent-ci-build-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Verify and assemble Android APKs
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out repository with submodules
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4
+
+      - name: Accept Android SDK licenses
+        shell: bash
+        run: |
+          set +e
+          sdkmanager_bin="${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$sdkmanager_bin" ]; then
+            sdkmanager_bin="$(command -v sdkmanager 2>/dev/null)"
+          fi
+          if [ -n "$sdkmanager_bin" ] && [ -x "$sdkmanager_bin" ]; then
+            yes | "$sdkmanager_bin" --licenses >/dev/null 2>&1
+            echo "Android SDK licenses accepted."
+          else
+            echo "sdkmanager unavailable; relying on runner preinstalled licenses."
+          fi
+          exit 0
+
+      - name: Verify streaming capability markers (presence only, no build)
+        shell: bash
+        run: |
+          set -euo pipefail
+          required_files=(
+            "shared/build.gradle.kts"
+            "gradle/libs.versions.toml"
+            "gradle.properties"
+            "shared/src/commonMain/kotlin/com/metrolist/shared/api/YouTubeRepository.kt"
+            "shared/src/commonMain/kotlin/com/metrolist/shared/playback/TokenlessStreamRenewal.kt"
+            "androidApp/src/main/kotlin/com/metrolist/android/playback/ExoPlaybackPlayer.kt"
+          )
+          for file in "${required_files[@]}"; do
+            test -s "$file" || { echo "::error::Missing streaming capability file: $file" >&2; exit 1; }
+          done
+          grep -q "com.github.MetrolistGroup.innertubex" shared/build.gradle.kts \
+            || { echo "::error::InnerTubeX streaming dependency is missing" >&2; exit 1; }
+          grep -q "innerTubeXVersion" gradle.properties \
+            || { echo "::error::innerTubeXVersion pin is missing" >&2; exit 1; }
+          grep -q "media3-exoplayer" gradle/libs.versions.toml \
+            || { echo "::error::Media3 streaming dependency is missing" >&2; exit 1; }
+          grep -q "ktor-client-core" gradle/libs.versions.toml \
+            || { echo "::error::Ktor networking dependency is missing" >&2; exit 1; }
+          echo "Streaming capability markers verified (file/dependency presence only)."
+
+      - name: Make Gradle wrapper executable
+        run: chmod +x ./gradlew
+
+      - name: Run existing tests and assemble APKs (lint excluded)
+        shell: bash
+        env:
+          CI: 'true'
+        run: |
+          set -euo pipefail
+          ./gradlew \
+            :androidApp:testDebugUnitTest \
+            :shared:testAndroidHostTest \
+            :androidApp:assembleDebug \
+            :androidApp:assembleRelease \
+            -x :androidApp:lintDebug \
+            -x :androidApp:lintVitalRelease \
+            --no-daemon \
+            --no-configuration-cache \
+            --max-workers=4 \
+            "-Dorg.gradle.jvmargs=-Xmx6g -XX:MaxMetaspaceSize=1g -Dfile.encoding=UTF-8"
+
+      - name: Collect APKs
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          if [ -d androidApp/build/outputs/apk ]; then
+            find androidApp/build/outputs/apk -type f -name '*.apk' -print0 |
+              while IFS= read -r -d '' apk; do
+                variant="$(basename "$(dirname "$apk")")"
+                cp "$apk" "dist/${variant}-$(basename "$apk")"
+              done
+          fi
+          ls -lh dist || true
+
+      - name: Upload APK artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-ci-apks
+          path: dist/*.apk
+          if-no-files-found: warn
+          retention-days: 7
