@@ -272,6 +272,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun showContent() {
+        val playerConnection = get<PlayerConnection>()
         if (navigationRestoration.shouldResetLibraryFilter(Settings.shared.defaultOpenTab)) {
             Settings.shared.libraryFilter = LibraryFilterType.DEFAULT
         }
@@ -308,7 +309,7 @@ class MainActivity : ComponentActivity() {
             ) {
                 val app = application as App
                 var onboardingComplete by remember { mutableStateOf(app.onboardingManager.isComplete) }
-                Box(Modifier.fillMaxSize().onGloballyPositioned { startupPresentation.contentLaidOut = true }) {
+                Box(Modifier.fillMaxSize().onGloballyPositioned { startupPresentation.contentLaidOut = true }.mediaKeyHandler(playerConnection)) {
                     if (onboardingComplete) {
                         MetrolistApp(
                             navigationSaveKey = navigationRestoration.saveKey,
