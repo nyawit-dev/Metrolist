@@ -261,7 +261,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.metrolist.music"
+        applicationId = "dev.nyawit.music"
         minSdk = 24
         targetSdk = 37
         versionCode = 155
@@ -303,7 +303,7 @@ android {
             isShrinkResources = true
             ndk.debugSymbolLevel = "FULL"
             optimization.keepRules { ignoreFrom("com.materialkolor:material-kolor-android:5.0.1") }
-            manifestPlaceholders["appLabel"] = "Metrolist"
+            manifestPlaceholders["appLabel"] = "Nyawit Music"
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
@@ -326,7 +326,7 @@ android {
         }
         debug {
             applicationIdSuffix = ".debug"
-            manifestPlaceholders["appLabel"] = "Metrolist KMP Debug"
+            manifestPlaceholders["appLabel"] = "Nyawit Music Debug"
         }
     }
 
@@ -416,6 +416,10 @@ androidComponents {
         variant.sources.res?.addGeneratedSourceDirectory(generateAndroidStrings, GenerateAndroidStringsTask::outputDirectory)
         variant.instrumentation.transformClassesWith(NavDisplayZIndexFallback::class.java, InstrumentationScope.ALL) {}
         variant.instrumentation.setAsmFramesComputationMode(FramesComputationMode.COMPUTE_FRAMES_FOR_INSTRUMENTED_METHODS)
+        // Nyawit Music branding: branded APK file names (additive, no upstream behaviour removed).
+        variant.outputs.forEach { output ->
+            output.outputFileName.set("NyawitMusic-${variant.name}-${appVersion}.apk")
+        }
     }
 }
 
