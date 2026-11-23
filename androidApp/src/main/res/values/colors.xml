@@ -8,4 +8,7 @@
 
     <color name="widget_text_primary">@color/widget_on_surface</color>
     <color name="widget_text_secondary">@color/widget_on_surface_variant</color>
+    <!-- Nyawit Music launcher brand colors (additive). -->
+    <color name="ic_launcher_nyawit_background">#FF2E1065</color>
+    <color name="ic_launcher_nyawit_glyph">#FF22D3EE</color>
 </resources>
