@@ -3,4 +3,8 @@
     <style name="Theme.Widget.Metrolist" parent="@android:style/Theme.DeviceDefault.DayNight">
         <item name="android:colorBackground">#E6E1E5</item>
     </style>
+    <!-- Nyawit Music branded widget theme for API 29+ (additive). -->
+    <style name="Theme.Widget.NyawitMusic" parent="@android:style/Theme.DeviceDefault.DayNight">
+        <item name="android:colorBackground">#E6E1E5</item>
+    </style>
 </resources>
