@@ -27,7 +27,7 @@ jobs:
             task: ':desktopApp:packageAppImage'
           - os: windows-latest
             name: windows
-            task: ':desktopApp:createDistributable'
+            task: ':desktopApp:packageMsi'
           - os: macos-latest
             name: mac
             task: ':desktopApp:packageDmg'
@@ -54,7 +54,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p dist
-          if [ -d desktopApp/build/compose/binaries ]; then cp -R desktopApp/build/compose/binaries/. dist/; fi
+          find desktopApp/build/compose/binaries -type f \( -name '*.msi' -o -name '*.exe' \) -exec cp {} dist/ \;
           find dist -type f | head -40
           ls -lh dist/
           test -n "$(ls dist/* 2>/dev/null)" || exit 1
