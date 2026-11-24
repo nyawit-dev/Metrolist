@@ -4,35 +4,67 @@ on:
   workflow_dispatch:
     inputs:
       ref:
-        description: 'Git ref to build'
+        description: 'Git ref to build (use main or a release tag)'
         required: true
-        default: 'v1.0.0'
+        default: 'main'
+        type: string
+      tag:
+        description: 'GitHub Release tag; must equal v<appVersion> from gradle.properties'
+        required: true
+        default: ''
         type: string
 
 permissions:
   contents: read
 
 concurrency:
-  group: native-release-${{ inputs.ref }}
+  group: desktop-release-${{ inputs.tag }}
   cancel-in-progress: false
 
 jobs:
+  validate:
+    name: Validate release tag
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          fetch-depth: 1
+      - name: Check tag against appVersion
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(grep -E '^appVersion=' gradle.properties | head -1 | cut -d= -f2 | tr -d '[:space:]')"
+          test -n "$version" || { echo "appVersion missing in gradle.properties" >&2; exit 1; }
+          expected="v${version}"
+          test "${{ inputs.tag }}" = "$expected" || {
+            echo "Tag '${{ inputs.tag }}' does not match appVersion '$version' (expected $expected)" >&2
+            exit 1
+          }
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
   build:
+    name: Build ${{ matrix.name }} installers
+    needs: validate
     strategy:
       fail-fast: false
       matrix:
         include:
           - os: ubuntu-latest
             name: linux
-            task: ':desktopApp:packageDeb'
+            patterns: 'deb AppImage'
           - os: windows-latest
             name: windows
-            task: ':desktopApp:packageMsi'
+            patterns: 'msi exe'
           - os: macos-latest
             name: mac
-            task: ':desktopApp:packageDmg'
+            patterns: 'dmg'
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 90
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
         with:
@@ -47,19 +79,89 @@ jobs:
         if: runner.os != 'Windows'
         shell: bash
         run: chmod +x gradlew
-      - name: Build ${{ matrix.name }} native package
-        shell: bash
-        run: ./gradlew --no-daemon --no-configuration-cache ${{ matrix.task }} --stacktrace
-      - name: Collect native artifact
+      - uses: ./.github/actions/generate-icons
+      - name: Build Linux deb and AppImage
+        if: matrix.name == 'linux'
         shell: bash
         run: |
+          ./gradlew --no-daemon --no-configuration-cache \
+            :desktopApp:packageDeb --stacktrace
+          ./scripts/build_appimage.sh -Pmetrolist.verifyPackaging=false
+      - name: Build Windows MSI
+        if: matrix.name == 'windows'
+        shell: bash
+        run: ./gradlew --no-daemon --no-configuration-cache :desktopApp:packageMsi --stacktrace
+      - name: Build macOS DMG
+        if: matrix.name == 'mac'
+        shell: bash
+        run: ./gradlew --no-daemon --no-configuration-cache :desktopApp:packageDmg --stacktrace
+      - name: Collect and rename installers
+        shell: bash
+        run: |
+          set -euo pipefail
           mkdir -p dist
-          find desktopApp/build/compose/binaries -type f \( -name '*.msi' -o -name '*.exe' -o -name '*.deb' \) -exec cp {} dist/ \;
-          find dist -type f | head -40
-          ls -lh dist/
-          test -n "$(ls dist/* 2>/dev/null)" || exit 1
+          for ext in ${{ matrix.patterns }}; do
+            find desktopApp/build/compose/binaries -type f -name "*.$ext" -exec cp {} dist/ \; 2>/dev/null || true
+          done
+          if [[ -f dist/NyawitMusic.AppImage ]]; then
+            mv dist/NyawitMusic.AppImage "dist/NyawitMusic-${{ needs.validate.outputs.version }}-linux-x86_64.AppImage"
+          fi
+          arch="$(uname -m | tr '[:upper:]' '[:lower:]')"
+          case "$arch" in
+            x86_64|amd64) arch=amd64 ;;
+            aarch64|arm64) arch=arm64 ;;
+          esac
+          shopt -s nullglob
+          for f in dist/*; do
+            [[ "$(basename "$f")" == NyawitMusic-* ]] && continue
+            ext="${f##*.}"
+            target="dist/NyawitMusic-${{ needs.validate.outputs.version }}-${{ matrix.name }}-${arch}.${ext}"
+            [[ "$f" == "$target" ]] || mv "$f" "$target"
+          done
+          find dist -maxdepth 1 -type f -printf '%f %s bytes\n'
+          test -n "$(find dist -maxdepth 1 -type f -print -quit)" || { echo "::error::No installer collected" >&2; exit 1; }
       - uses: actions/upload-artifact@v4
         with:
           name: native-${{ matrix.name }}
           path: dist/*
           if-no-files-found: error
+
+  publish:
+    name: Publish installers to GitHub Release
+    needs: [validate, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          fetch-depth: 1
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: native-*
+          merge-multiple: true
+          path: release-assets
+      - name: Upload release assets with checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd release-assets
+          sha256sum -- * > SHA256SUMS-native
+          tag="${{ inputs.tag }}"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "Release $tag already exists, adding assets"
+          else
+            gh release create "$tag" --draft --title "$tag" --generate-notes
+          fi
+          gh release upload "$tag" ./* --clobber
+          gh release edit "$tag" --draft=false
+          mkdir -p "$RUNNER_TEMP/all-assets"
+          gh release download "$tag" --dir "$RUNNER_TEMP/all-assets" --clobber
+          cd "$RUNNER_TEMP/all-assets"
+          find . -maxdepth 1 -type f ! -name 'SHA256SUMS*' -printf '%f\n' | sort | xargs -r sha256sum > SHA256SUMS
+          gh release upload "$tag" SHA256SUMS --clobber
+          gh release view "$tag" --json assets --jq '.assets[].name'
