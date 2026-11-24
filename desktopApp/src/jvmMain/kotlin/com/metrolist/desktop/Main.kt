@@ -1,5 +1,5 @@
 /*
- * Metrolist Project (C) 2026
+ * Nyawit Music — fork of Metrolist (C) 2026
  * Licensed under GPL-3.0 | See git history for contributors
  */
 
@@ -685,10 +685,10 @@ private fun startupRuntimeAvailable(): Boolean {
         if (error !is Exception && error !is LinkageError) throw error
         val location = System.getProperty("java.io.tmpdir")
         val message =
-            "Metrolist cannot initialize its native runtime or temporary storage.\n\n" +
+            "Nyawit Music cannot initialize its native runtime or temporary storage.\n\n" +
                 "Location: $location\n" +
                 "Error: ${error.message ?: error::class.simpleName}\n\n" +
-                "Free disk space or adjust the temporary directory, then restart Metrolist."
+                "Free disk space or adjust the temporary directory, then restart Nyawit Music."
         System.err.println(message)
         error.printStackTrace(System.err)
         if (!GraphicsEnvironment.isHeadless()) {
@@ -696,7 +696,7 @@ private fun startupRuntimeAvailable(): Boolean {
                 JOptionPane.showMessageDialog(
                     null,
                     message,
-                    "Metrolist startup error",
+                    "Nyawit Music startup error",
                     JOptionPane.ERROR_MESSAGE,
                 )
             }
@@ -709,14 +709,14 @@ private fun startupRuntimeAvailable(): Boolean {
 
 private fun configureLinuxWindowIdentity() {
     if (!OsUtil.isLinux) return
-    System.setProperty("awt.app.id", "Metrolist")
+    System.setProperty("awt.app.id", "NyawitMusic")
     runCatching {
         // XToolkit's constructor names the X11 class after the creating thread, so create it here and then rename it.
         Toolkit.getDefaultToolkit()
         val xToolkit = Class.forName("sun.awt.X11.XToolkit")
         xToolkit.getDeclaredField("awtAppClassName").apply {
             isAccessible = true
-            set(null, "Metrolist")
+            set(null, "Nyawit Music")
         }
     }
 }
@@ -931,7 +931,7 @@ private fun runDesktopApp(args: Array<String>) {
     flushDesktopCredentialWarnings()
     startup.trace("settings")
 
-    AppLogger.info("Main", "Metrolist starting up")
+    AppLogger.info("Main", "Nyawit Music starting up")
     AppLogger.info("Main", "OS: ${OsUtil.name}")
     val javaVersion = Runtime.version()
     AppLogger.info(
@@ -1313,7 +1313,7 @@ private fun runDesktopApp(args: Array<String>) {
             }
         }
 
-        val appTitle = if (BuildConfig.DEBUG) "Metrolist Debug" else "Metrolist"
+        val appTitle = if (BuildConfig.DEBUG) "Nyawit Music Debug" else "Nyawit Music"
         val windowTitle =
             PlayerState.currentTrack?.takeIf { it.title.isNotBlank() }?.let { track ->
                 val artists = track.artists.joinToString { it.displayName }
