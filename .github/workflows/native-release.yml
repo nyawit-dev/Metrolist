@@ -27,7 +27,7 @@ jobs:
             task: ':desktopApp:packageAppImage'
           - os: windows-latest
             name: windows
-            task: ':desktopApp:packageMsi'
+            task: ':desktopApp:package'
           - os: macos-latest
             name: mac
             task: ':desktopApp:packageDmg'
@@ -54,9 +54,8 @@ jobs:
         shell: bash
         run: |
           mkdir -p dist
-          find desktopApp/build/compose/binaries -type f \
-            \( -name '*.deb' -o -name '*.rpm' -o -name '*.AppImage' -o -name '*.dmg' -o -name '*.msi' -o -name '*.exe' \) \
-            -exec cp {} dist/ \;
+          cp -R desktopApp/build/compose/binaries/. dist/
+          find dist -type f | head -40
           ls -lh dist/
           test -n "$(ls dist/* 2>/dev/null)" || exit 1
       - uses: actions/upload-artifact@v4
