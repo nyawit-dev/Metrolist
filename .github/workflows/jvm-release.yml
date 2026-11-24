@@ -15,7 +15,7 @@ on:
         type: string
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: jvm-release-${{ inputs.tag }}
@@ -63,20 +63,3 @@ jobs:
         with:
           name: jvm-${{ matrix.name }}
           path: dist/*
-
-  publish:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          path: dist
-          merge-multiple: true
-      - name: List artifacts
-        run: ls -lh dist/
-      - name: Attach to GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ inputs.tag }}
-          files: dist/*
-          fail_on_unmatched_files: true
