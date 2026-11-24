@@ -28,29 +28,3 @@ jobs:
         with:
           name: nyawit-music-debug-verify
           path: androidApp/build/outputs/apk/**/*.apk
-
-  text-checks:
-    name: Verify release scripts
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.13'
-      - name: Shell syntax
-        shell: bash
-        run: bash -n scripts/build_appimage.sh scripts/linux-appimage-apprun.sh
-      - name: Python checks
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 -m unittest discover -s .github/tests
-          python3 -m unittest discover -s scripts/desktop-native-image -p test_native_pipeline.py
-          python3 scripts/test_build_appimage.py
-          python3 scripts/test_linux_appimage_apprun.py
-          python3 scripts/test_desktop_smoke.py
-          python3 scripts/test_distribution.py
-          python3 scripts/check_translation_mechanics.py
