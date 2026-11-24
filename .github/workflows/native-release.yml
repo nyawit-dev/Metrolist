@@ -1,0 +1,66 @@
+name: Native Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Git ref to build'
+        required: true
+        default: 'v1.0.0'
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-release-${{ inputs.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            name: linux
+            task: ':desktopApp:packageAppImage'
+          - os: windows-latest
+            name: windows
+            task: ':desktopApp:packageMsi'
+          - os: macos-latest
+            name: mac
+            task: ':desktopApp:packageDmg'
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          fetch-depth: 0
+          submodules: recursive
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Make gradlew executable
+        if: runner.os != 'Windows'
+        shell: bash
+        run: chmod +x gradlew
+      - name: Build ${{ matrix.name }} native package
+        shell: bash
+        run: ./gradlew --no-daemon ${{ matrix.task }} --stacktrace
+      - name: Collect native artifact
+        shell: bash
+        run: |
+          mkdir -p dist
+          find desktopApp/build/compose/binaries -type f \
+            \( -name '*.deb' -o -name '*.rpm' -o -name '*.AppImage' -o -name '*.dmg' -o -name '*.msi' -o -name '*.exe' \) \
+            -exec cp {} dist/ \;
+          ls -lh dist/
+          test -n "$(ls dist/* 2>/dev/null)" || exit 1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-${{ matrix.name }}
+          path: dist/*
+          if-no-files-found: error
