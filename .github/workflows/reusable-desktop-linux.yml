@@ -120,7 +120,7 @@ jobs:
           while IFS='=' read -r key value; do
             if [[ "$key" == "appVersion" ]]; then version="$value"; break; fi
           done < gradle.properties
-          source="dist/Metrolist.AppImage"
+          source="dist/NyawitMusic.AppImage"
           test -x "$source" || { echo "Linux AppImage was not produced or is not executable" >&2; exit 1; }
           description="$(file -b "$source")"
           case "${{ matrix.arch }}" in
@@ -128,7 +128,7 @@ jobs:
             arm64) grep -Eiq 'aarch64|ARM64' <<< "$description" || { echo "Expected aarch64 AppImage, got: $description" >&2; exit 1; } ;;
             *) echo "Unsupported Linux artifact architecture: ${{ matrix.arch }}" >&2; exit 1 ;;
           esac
-          output="dist/metrolist-desktop-linux-${{ matrix.arch }}-${version}.AppImage"
+          output="dist/NyawitMusic-linux-${{ matrix.arch }}-${version}.AppImage"
           mv "$source" "$output"
           echo "path=$output" >> "$GITHUB_OUTPUT"
 

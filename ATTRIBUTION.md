@@ -17,3 +17,8 @@ Distributed under the **GNU General Public License, version 3 (GPL-3.0)**, the s
 ## Brand assets
 
 The Nyawit Music launcher icon vector drawables and the Play Store icon PNG were generated originally for this fork (the raster icon was generated with Pillow). Upstream icon resources remain in the repository untouched for upstream sync.
+## Identity policy
+
+To keep upstream synchronisation conflict-free, this fork deliberately retains internal identifiers: Kotlin package namespaces (`com.metrolist.*`), Gradle property and environment names (`metrolist.*`, `METROLIST_*`), URI schemes (`metrolist`, `metrolist-auth`), bundle/app IDs (`com.metrolist.desktop`), data directories (`metrolist/`), and Sentry DSN/release identity.
+
+User-visible branding — app name, window/tray titles, dialogs, UI strings, launcher icons, installer metadata, package/launcher names, release asset names and distribution recipes — uses **Nyawit Music**. Do not change the retained identifiers in piecemeal rebrand commits; doing so breaks deep links, existing user data and upstream merges.

@@ -17,7 +17,21 @@ This fork keeps **full upstream support**: online streaming, InnerTube/InnerTube
 
 ## Releases and builds
 
-Builds are produced by GitHub Actions in this repository. See `.github/workflows/` for the release pipelines. Android APKs are named `NyawitMusic-<variant>-<version>.apk`.
+All builds and tests run in GitHub Actions; nothing is built on a local machine. Android APKs are named `NyawitMusic-<variant>-<version>.apk`.
+
+### Desktop releases
+
+Trigger **Native Release** or **JVM Release** from the Actions tab with:
+
+- `ref`: `main` (or the release tag)
+- `tag`: `v<appVersion>` from `gradle.properties` (e.g. `v14.0.1`)
+
+The tag must match `appVersion`; validation fails otherwise. Assets are named `NyawitMusic-<version>-<os>-<arch>.<ext>` and every release includes `SHA256SUMS`.
+
+- Linux: `.deb`, `.AppImage`
+- Windows: `.msi`
+- macOS: `.dmg`
+- Portable JVM artifacts: Windows `.zip`, macOS `.jar`
 
 ## Development
 

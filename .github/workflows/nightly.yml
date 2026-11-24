@@ -113,7 +113,7 @@ jobs:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           OPENROUTER_MODEL: z-ai/glm-5.3-flash
           PROMPT: >-
-            You write release notes for Metrolist, a YouTube Music client for Android and desktop.
+            You write release notes for NyawitMusic, a YouTube Music client for Android and desktop.
             The input is a list of Conventional Commit subjects with short hashes.
             Write a short Markdown list of the changes users will notice under the subheadings
             "### New", "### Fixed" and "### Improved", leaving out empty subheadings.
@@ -226,9 +226,9 @@ jobs:
           done
           # Fixed names, so latest-nightly download links never change; the release notes carry the version.
           mkdir nightly-assets
-          cp "${apks[0]}" nightly-assets/Metrolist.apk
-          cp "${appimages[0]}" nightly-assets/Metrolist-Desktop-linux-x64.AppImage
-          cp "${zips[0]}" nightly-assets/Metrolist-Desktop-windows.zip
+          cp "${apks[0]}" nightly-assets/NyawitMusic.apk
+          cp "${appimages[0]}" nightly-assets/NyawitMusic-Desktop-linux-x64.AppImage
+          cp "${zips[0]}" nightly-assets/NyawitMusic-Desktop-windows.zip
 
       - name: Publish nightly prerelease
         shell: bash
@@ -246,10 +246,10 @@ jobs:
           else
             # Only a missing tag is created here; it is never moved, so publishing pushes no ref.
             gh release create nightly --target "$GITHUB_SHA" \
-              --title "Metrolist Nightly" --draft --prerelease --latest=false
+              --title "NyawitMusic Nightly" --draft --prerelease --latest=false
           fi
           gh release upload nightly nightly-assets/* --clobber
           # Apps match the built commit through target_commitish, which GitHub stores apart from the tag.
           gh release edit nightly --target "$GITHUB_SHA" \
-            --title "Metrolist Nightly" --notes-file artifacts/notes/nightly-notes.md \
+            --title "NyawitMusic Nightly" --notes-file artifacts/notes/nightly-notes.md \
             --draft=false --prerelease --latest=false
