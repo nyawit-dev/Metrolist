@@ -4,37 +4,67 @@ on:
   workflow_dispatch:
     inputs:
       ref:
-        description: 'Git ref to build (tag or branch)'
+        description: 'Git ref to build (use main or a release tag)'
         required: true
-        default: 'v1.0.0'
+        default: 'main'
         type: string
       tag:
-        description: 'GitHub Release tag to attach artifacts'
+        description: 'GitHub Release tag; must equal v<appVersion> from gradle.properties'
         required: true
-        default: 'v1.0.0'
+        default: ''
         type: string
 
 permissions:
   contents: read
 
 concurrency:
-  group: jvm-release-${{ inputs.tag }}
+  group: desktop-release-${{ inputs.tag }}
   cancel-in-progress: false
 
 jobs:
+  validate:
+    name: Validate release tag
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          fetch-depth: 1
+      - name: Check tag against appVersion
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(grep -E '^appVersion=' gradle.properties | head -1 | cut -d= -f2 | tr -d '[:space:]')"
+          test -n "$version" || { echo "appVersion missing in gradle.properties" >&2; exit 1; }
+          expected="v${version}"
+          test "${{ inputs.tag }}" = "$expected" || {
+            echo "Tag '${{ inputs.tag }}' does not match appVersion '$version' (expected $expected)" >&2
+            exit 1
+          }
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
   build:
+    name: Build ${{ matrix.name }} JVM artifact
+    needs: validate
     strategy:
       fail-fast: false
       matrix:
         include:
           - os: ubuntu-latest
             name: linux
+            kind: appimage
           - os: windows-latest
             name: windows
+            kind: zip
           - os: macos-latest
             name: mac
+            kind: jar
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 90
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
         with:
@@ -49,17 +79,102 @@ jobs:
         if: runner.os != 'Windows'
         shell: bash
         run: chmod +x gradlew
-      - name: Build JVM artifact
+      - uses: ./.github/actions/generate-icons
+      - name: Set up .NET 10 SDK
+        if: matrix.kind == 'zip'
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: metro-wv2-helper/global.json
+      - name: Build Windows login helper
+        if: matrix.kind == 'zip'
+        shell: pwsh
+        working-directory: metro-wv2-helper
+        run: |
+          $output = "../desktopApp/src/desktopMain/resources/windows"
+          dotnet publish "metro-wv2-helper.csproj" --configuration Release --runtime win-x64 --self-contained true --output $output -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=None -p:DebugSymbols=false -p:PublishReadyToRun=true
+          if ($LASTEXITCODE -ne 0) { throw "Windows login helper build failed with exit code $LASTEXITCODE" }
+          $helper = Join-Path $output "metro-wv2-helper.exe"
+          if (-not (Test-Path $helper -PathType Leaf)) { throw "Windows login helper was not produced" }
+      - name: Build Linux AppImage
+        if: matrix.kind == 'appimage'
         shell: bash
-        run: ./gradlew --no-daemon :desktopApp:packageUberJarForCurrentOS --stacktrace
-      - name: Collect JAR
+        run: ./scripts/build_appimage.sh -Pmetrolist.verifyPackaging=false
+      - name: Build Windows portable ZIP
+        if: matrix.kind == 'zip'
         shell: bash
         run: |
+          ./gradlew --no-daemon --no-configuration-cache \
+            :desktopApp:assembleWindowsRelease \
+            -Pmetrolist.debug=false -Pmetrolist.verifyPackaging=false --stacktrace
+      - name: Build macOS Uber JAR
+        if: matrix.kind == 'jar'
+        shell: bash
+        run: |
+          ./gradlew --no-daemon :desktopApp:packageUberJarForCurrentOS --stacktrace
+      - name: Collect and rename JVM artifact
+        shell: bash
+        run: |
+          set -euo pipefail
           mkdir -p dist
-          find desktopApp/build -type f -name '*.jar' -size +1M -exec cp {} dist/ \;
-          test -n "$(ls dist/* 2>/dev/null)" || { echo "::error::No JVM artifact"; exit 1; }
+          case '${{ matrix.kind }}' in
+            appimage)
+              test -s dist/NyawitMusic.AppImage || { echo "::error::AppImage missing" >&2; exit 1; }
+              mv dist/NyawitMusic.AppImage "dist/NyawitMusic-${{ needs.validate.outputs.version }}-linux-x86_64.AppImage"
+              ;;
+            zip)
+              source="$(find dist -maxdepth 1 -type f -name 'NyawitMusic-Desktop-Windows.zip' -print -quit)"
+              test -n "$source" || { echo "::error::Windows portable ZIP missing" >&2; exit 1; }
+              mv "$source" "dist/NyawitMusic-${{ needs.validate.outputs.version }}-windows-x86_64-portable.zip"
+              ;;
+            jar)
+              source="$(find desktopApp/build -type f -name '*.jar' -size +1M -print -quit)"
+              test -n "$source" || { echo "::error::Uber JAR missing" >&2; exit 1; }
+              cp "$source" "dist/NyawitMusic-${{ needs.validate.outputs.version }}-macos-arm64.jar"
+              ;;
+          esac
           ls -lh dist/
       - uses: actions/upload-artifact@v4
         with:
           name: jvm-${{ matrix.name }}
           path: dist/*
+          if-no-files-found: error
+
+  publish:
+    name: Publish JVM artifacts to GitHub Release
+    needs: [validate, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          fetch-depth: 1
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: jvm-*
+          merge-multiple: true
+          path: release-assets
+      - name: Upload release assets with checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd release-assets
+          sha256sum -- * > SHA256SUMS-jvm
+          tag="${{ inputs.tag }}"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "Release $tag already exists, adding assets"
+          else
+            gh release create "$tag" --draft --title "$tag" --generate-notes
+          fi
+          gh release upload "$tag" ./* --clobber
+          gh release edit "$tag" --draft=false
+          mkdir -p "$RUNNER_TEMP/all-assets"
+          gh release download "$tag" --dir "$RUNNER_TEMP/all-assets" --clobber
+          cd "$RUNNER_TEMP/all-assets"
+          find . -maxdepth 1 -type f ! -name 'SHA256SUMS*' -printf '%f\n' | sort | xargs -r sha256sum > SHA256SUMS
+          gh release upload "$tag" SHA256SUMS --clobber
+          gh release view "$tag" --json assets --jq '.assets[].name'
