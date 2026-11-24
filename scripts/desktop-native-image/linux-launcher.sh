@@ -66,4 +66,4 @@ fi
 export METROLIST_CURSOR_CONFIGURED=1
 
 DIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
-exec "$DIR/../lib/native/Metrolist" "$@"
+exec "$DIR/../lib/native/NyawitMusic" "$@"
