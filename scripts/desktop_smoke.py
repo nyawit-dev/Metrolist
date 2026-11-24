@@ -66,9 +66,9 @@ def packaged_command(package, work, system, stdout):
         app = work / "app"
         with zipfile.ZipFile(package) as archive:
             archive.extractall(app)
-        yield [str(app / "Metrolist.exe")]
+        yield [str(app / "NyawitMusic.exe")]
     elif system == "darwin" and package.suffix == ".app":
-        yield [str(package / "Contents/MacOS/Metrolist")]
+        yield [str(package / "Contents/MacOS/NyawitMusic")]
     elif system == "darwin" and package.suffix == ".zip":
         app = work / "app"
         with zipfile.ZipFile(package) as archive:
@@ -76,7 +76,7 @@ def packaged_command(package, work, system, stdout):
             for entry in archive.infolist():
                 if entry.external_attr >> 16 and not entry.is_dir():
                     (app / entry.filename).chmod((entry.external_attr >> 16) & 0o777)
-        yield [str(app / "Metrolist.app/Contents/MacOS/Metrolist")]
+        yield [str(app / "NyawitMusic.app/Contents/MacOS/NyawitMusic")]
     elif system == "darwin":
         mount = work / "dmg"
         mount.mkdir()
@@ -85,7 +85,7 @@ def packaged_command(package, work, system, stdout):
                 ["hdiutil", "attach", str(package), "-mountpoint", str(mount), "-readonly", "-nobrowse"],
                 check=True, timeout=30, stdout=stdout, stderr=subprocess.STDOUT,
             )
-            yield [str(mount / "Metrolist.app/Contents/MacOS/Metrolist")]
+            yield [str(mount / "NyawitMusic.app/Contents/MacOS/NyawitMusic")]
         finally:
             subprocess.run(
                 ["hdiutil", "detach", "-force", str(mount)], check=True, timeout=15,
@@ -191,7 +191,7 @@ def quit_app(process, launcher, system, java_trace=False):
                 path = launcher.replace("'", "''")
                 # jpackage can keep a parent launcher waiting for the GUI process.
                 close = (
-                    f"$apps = @(Get-Process Metrolist | Where-Object {{ $_.Path -eq '{path}' -and $_.MainWindowHandle -ne 0 }}); "
+                    f"$apps = @(Get-Process NyawitMusic | Where-Object {{ $_.Path -eq '{path}' -and $_.MainWindowHandle -ne 0 }}); "
                     "if ($apps.Count -eq 0) { throw 'Packaged app has no main window to close' }; "
                     "foreach ($app in $apps) { if (-not $app.CloseMainWindow()) { throw 'Window close failed' } }"
                 )
