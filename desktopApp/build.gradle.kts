@@ -735,7 +735,7 @@ compose.desktop {
                 "mac" -> targetFormats(TargetFormat.Dmg)
                 else -> targetFormats(TargetFormat.Deb, TargetFormat.Rpm, TargetFormat.AppImage)
             }
-            packageName = "Metrolist"
+            packageName = "NyawitMusic"
             val versionMatch =
                 Regex("""^(\d+)\.(\d+)\.(\d+)(?:-[A-Za-z0-9][A-Za-z0-9._-]*)?(?:\+[0-9A-Za-z.-]+)?$""")
                     .matchEntire(appVersion)
@@ -760,9 +760,9 @@ compose.desktop {
                 } else {
                     versionComponents.joinToString(".")
                 }
-            description = "Metrolist"
-            copyright = "© 2026 Metrolist"
-            vendor = "MetrolistGroup"
+            description = "Nyawit Music"
+            copyright = "© 2026 Nyawit Music"
+            vendor = "Nyawit"
 
             appResourcesRootDir.set(nativeResourcesDir)
 
@@ -816,7 +816,7 @@ compose.desktop {
                     extraKeysRawXml =
                         """
                         <key>NSLocalNetworkUsageDescription</key>
-                        <string>Metrolist uses the local network to find and control casting devices.</string>
+                        <string>Nyawit Music uses the local network to find and control casting devices.</string>
                         <key>NSBonjourServices</key>
                         <array>
                             <string>_fcast._tcp</string>
@@ -826,7 +826,7 @@ compose.desktop {
                         <array>
                             <dict>
                                 <key>CFBundleURLName</key>
-                                <string>Metrolist URL</string>
+                                <string>Nyawit Music URL</string>
                                 <key>CFBundleURLSchemes</key>
                                 <array>
                                     <string>metrolist</string>
@@ -838,7 +838,7 @@ compose.desktop {
                 }
                 iconFile.set(project.file("src/desktopMain/resources/logo.icns"))
                 dmgPackageVersion = packageVersion
-                dockName = "Metrolist"
+                dockName = "Nyawit Music"
             }
         }
     }
