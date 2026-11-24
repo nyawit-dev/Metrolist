@@ -49,7 +49,7 @@ jobs:
         run: chmod +x gradlew
       - name: Build ${{ matrix.name }} native package
         shell: bash
-        run: ./gradlew --no-daemon ${{ matrix.task }} --stacktrace
+        run: ./gradlew --no-daemon --no-configuration-cache ${{ matrix.task }} --stacktrace
       - name: Collect native artifact
         shell: bash
         run: |
