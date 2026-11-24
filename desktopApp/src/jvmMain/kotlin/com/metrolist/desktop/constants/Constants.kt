@@ -1,5 +1,5 @@
 /**
- * Metrolist Project (C) 2026
+ * Nyawit Music — fork of Metrolist (C) 2026
  * Licensed under GPL-3.0 | See git history for contributors
  */
 
