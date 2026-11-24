@@ -3,12 +3,12 @@
   <id>com.metrolist.desktop</id>
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>GPL-3.0-or-later</project_license>
-  <name>Nyawit Music</name>
+  <name>Metrolist</name>
   <summary>Stream and manage your YouTube Music library</summary>
 
   <description>
     <p>
-      Nyawit Music is a YouTube Music client for Linux. Browse, search and play
+      Metrolist is a YouTube Music client for Linux. Browse, search and play
       your YouTube Music library, manage playlists and play music in the
       background.
     </p>
@@ -22,11 +22,11 @@
 
   <launchable type="desktop-id">com.metrolist.desktop.desktop</launchable>
 
-  <url type="homepage">https://github.com/nyawit-dev/nyawit-music</url>
-  <url type="bugtracker">https://github.com/nyawit-dev/nyawit-music/issues</url>
+  <url type="homepage">https://github.com/MetrolistGroup/Metrolist</url>
+  <url type="bugtracker">https://github.com/MetrolistGroup/Metrolist/issues</url>
 
-  <developer id="cc.nyawit">
-    <name>nyawit-dev</name>
+  <developer id="cc.metrolist">
+    <name>MetrolistGroup</name>
   </developer>
 
   <content_rating type="oars-1.1"/>

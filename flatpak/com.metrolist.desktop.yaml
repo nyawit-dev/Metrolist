@@ -67,7 +67,7 @@ modules:
     build-commands:
       - ./gradlew clean :desktopApp:verifyReleaseDistributableJars --no-daemon --no-build-cache --no-configuration-cache
       - mkdir -p /app
-      - cp -r desktopApp/build/compose/binaries/main-release/app/NyawitMusic/* /app/
+      - cp -r desktopApp/build/compose/binaries/main-release/app/Metrolist/* /app/
       - |
         cat > /app/bin/com.metrolist.desktop <<'LAUNCHER'
         #!/bin/sh
@@ -79,7 +79,7 @@ modules:
         export WEBKIT_DISABLE_COMPOSITING_MODE=1
         export LC_NUMERIC=C
         DIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
-        exec "$DIR/NyawitMusic" "$@"
+        exec "$DIR/Metrolist" "$@"
         LAUNCHER
       - chmod +x /app/bin/com.metrolist.desktop
       - mkdir -p /app/share/metainfo

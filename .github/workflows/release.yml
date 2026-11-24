@@ -294,34 +294,34 @@ jobs:
           set -euo pipefail
           # Native packages keep the stable names the updater, manager and package recipes download.
           mv \
-            "release-assets/NyawitMusic-native-windows-x64-${APP_VERSION}.zip" \
-            release-assets/NyawitMusic-Desktop-windows.zip
+            "release-assets/metrolist-desktop-native-windows-x64-${APP_VERSION}.zip" \
+            release-assets/Metrolist-Desktop-windows.zip
           mv \
-            "release-assets/NyawitMusic-native-linux-x64-${APP_VERSION}.AppImage" \
-            "release-assets/NyawitMusic-linux-x64-${APP_VERSION}.AppImage"
+            "release-assets/metrolist-desktop-native-linux-x64-${APP_VERSION}.AppImage" \
+            "release-assets/metrolist-desktop-linux-x64-${APP_VERSION}.AppImage"
           mv \
-            release-assets/NyawitMusic-Desktop-Windows-arm64.zip \
-            "release-assets/NyawitMusic-windows-arm64-${APP_VERSION}.zip"
+            release-assets/Metrolist-Desktop-Windows-arm64.zip \
+            "release-assets/metrolist-desktop-windows-arm64-${APP_VERSION}.zip"
           # Legacy v13 GMS builds only update from this asset name; the app has one variant.
-          cp release-assets/NyawitMusic.apk release-assets/NyawitMusic-with-Google-Cast.apk
-          if [[ -f release-assets/NyawitMusic.ipa ]]; then
+          cp release-assets/Metrolist.apk release-assets/Metrolist-with-Google-Cast.apk
+          if [[ -f release-assets/Metrolist.ipa ]]; then
             python3 scripts/generate_altstore_source.py \
-              "$GITHUB_REPOSITORY" "$APP_VERSION" release-assets/NyawitMusic.ipa release-assets/nyawitmusic-altstore.json
+              "$GITHUB_REPOSITORY" "$APP_VERSION" release-assets/Metrolist.ipa release-assets/metrolist-altstore.json
           fi
           expected=(
-            "release-assets/NyawitMusic.apk"
-            "release-assets/NyawitMusic-with-Google-Cast.apk"
-            "release-assets/NyawitMusic-izzy.apk"
-            "release-assets/NyawitMusic-KMP-mapping.txt"
-            "release-assets/NyawitMusic.ipa"
-            "release-assets/nyawitmusic-altstore.json"
-            "release-assets/NyawitMusic-Desktop-windows.zip"
-            "release-assets/NyawitMusic-windows-x64-${APP_VERSION}.exe"
-            "release-assets/NyawitMusic-windows-arm64-${APP_VERSION}.zip"
-            "release-assets/NyawitMusic-linux-x64-${APP_VERSION}.AppImage"
-            "release-assets/NyawitMusic-linux-arm64-${APP_VERSION}.AppImage"
-            "release-assets/NyawitMusic-macos-arm64-${APP_VERSION}.dmg"
-            "release-assets/NyawitMusic-macos-x64-${APP_VERSION}.dmg"
+            "release-assets/Metrolist.apk"
+            "release-assets/Metrolist-with-Google-Cast.apk"
+            "release-assets/Metrolist-izzy.apk"
+            "release-assets/Metrolist-KMP-mapping.txt"
+            "release-assets/Metrolist.ipa"
+            "release-assets/metrolist-altstore.json"
+            "release-assets/Metrolist-Desktop-windows.zip"
+            "release-assets/metrolist-installer-windows-x64-${APP_VERSION}.exe"
+            "release-assets/metrolist-desktop-windows-arm64-${APP_VERSION}.zip"
+            "release-assets/metrolist-desktop-linux-x64-${APP_VERSION}.AppImage"
+            "release-assets/metrolist-desktop-linux-arm64-${APP_VERSION}.AppImage"
+            "release-assets/metrolist-desktop-macos-arm64-${APP_VERSION}.dmg"
+            "release-assets/metrolist-desktop-macos-x64-${APP_VERSION}.dmg"
           )
           for file in "${expected[@]}"; do
             test -f "$file" || { echo "Missing release asset: $file" >&2; exit 1; }
@@ -417,8 +417,8 @@ jobs:
           gh release download "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
             --dir distribution-assets --pattern SHA256SUMS \
             --pattern 'metrolist-installer-windows-*.exe' \
-            --pattern 'NyawitMusic-linux-*.AppImage' \
-            --pattern 'NyawitMusic-macos-*.dmg'
+            --pattern 'metrolist-desktop-linux-*.AppImage' \
+            --pattern 'metrolist-desktop-macos-*.dmg'
 
       - name: Generate recipes from verified assets
         run: >-
@@ -490,10 +490,10 @@ jobs:
         if: env.WINGET_TOKEN != ''
         uses: vedantmgoyal9/winget-releaser@b7370d4d152efdce803a26cc6ca9eee58cb2ad54 # v2
         with:
-          identifier: nyawit-dev.NyawitMusic
+          identifier: MetrolistGroup.Metrolist
           version: ${{ needs.prepare.outputs.version }}
           release-tag: ${{ github.ref_name }}
-          installers-regex: 'NyawitMusic-windows-x64-.*\.exe$'
+          installers-regex: 'metrolist-installer-windows-x64-.*\.exe$'
           token: ${{ secrets.WINGET_TOKEN }}
 
   flatpark:
@@ -525,7 +525,7 @@ jobs:
         if: env.HOMEBREW_TAP_TOKEN != ''
         env:
           GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
-        run: gh api repos/nyawit-dev/homebrew-tap/dispatches -f event_type=nyawitmusic-release
+        run: gh api repos/MetrolistGroup/homebrew-tap/dispatches -f event_type=metrolist-release
 
   finalize-sentry:
     name: Finalize Sentry releases
