@@ -57,11 +57,6 @@ jobs:
           submodules: recursive
           persist-credentials: false
 
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '25'
-
       - name: Validate Compose resources
         run: python3 scripts/check_compose_resource_escapes.py
 
@@ -136,17 +131,7 @@ jobs:
             if [[ '${{ inputs.compile }}' == 'true' ]]; then
               tasks+=(:desktopApp:compileKotlinJvm)
             fi
-            ./gradlew "${tasks[@]}" --no-daemon --stacktrace -Pmetrolist.sourceRevision=
+            ./gradlew "${tasks[@]}" --no-daemon -Pmetrolist.sourceRevision=
           else
             ./gradlew :desktopApp:assemble --no-daemon -Pmetrolist.sourceRevision=
           fi
-
-      - name: Upload desktop test reports
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: desktop-test-reports
-          path: |
-            shared/build/test-results/desktopTest/*.xml
-            desktopApp/build/test-results/jvmTest/*.xml
-          if-no-files-found: ignore
