@@ -164,4 +164,4 @@ jobs:
           cd "$RUNNER_TEMP/all-assets"
           find . -maxdepth 1 -type f ! -name 'SHA256SUMS*' -printf '%f\n' | sort | xargs -r sha256sum > SHA256SUMS
           gh release upload "$tag" SHA256SUMS --clobber
-          gh release view "$tag" --json assets --jq '.assets[].name'
+          gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name'
