@@ -48,7 +48,7 @@ IzzyOnDroid takes `Metrolist-izzy.apk`, built from the `izzy` build type in its 
 
 Android release builds preserve class/method names but optimize line numbers. Use the published `Metrolist-KMP-mapping.txt` with `retrace` to restore source lines. The redacted crash trace keeps its R8 map identifier.
 
-Stable releases publish GitHub assets only unless the repository variable `EXTERNAL_DISTRIBUTION` is `true`. With that variable set, the workflow generates the `distribution-recipes` artifact and submits the WinGet, Homebrew and Flatpak updates. External draft PRs require separate configuration; see [distribution](distribution.md#optional-external-proposals).
+Stable releases publish GitHub assets only unless the repository variable `EXTERNAL_DISTRIBUTION` is `true`. With that variable set, the workflow generates the `distribution-recipes` artifact and submits the WinGet, Homebrew and Flatpak updates. The iOS job runs only when `INCLUDE_IOS` is `true`; without it the release ships Android and desktop assets. External draft PRs require separate configuration; see [distribution](distribution.md#optional-external-proposals).
 
 ## macOS runners
 

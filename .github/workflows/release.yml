@@ -327,6 +327,8 @@ jobs:
 
   ios:
     name: iOS
+    # Opt-in: this release ships Android and desktop only.
+    if: vars.INCLUDE_IOS == 'true'
     needs: prepare
     uses: ./.github/workflows/reusable-ios-build.yml
     permissions:
@@ -371,7 +373,6 @@ jobs:
       - linux-jvm
       - linux-packages
       - macos
-      - ios
     runs-on: blacksmith-2vcpu-ubuntu-2604
     timeout-minutes: 15
     permissions:
@@ -424,8 +425,6 @@ jobs:
             "release-assets/Metrolist-with-Google-Cast.apk"
             "release-assets/Metrolist-izzy.apk"
             "release-assets/Metrolist-KMP-mapping.txt"
-            "release-assets/Metrolist.ipa"
-            "release-assets/metrolist-altstore.json"
             "release-assets/Metrolist-Desktop-windows.zip"
             "release-assets/metrolist-installer-windows-x64-${APP_VERSION}.exe"
             "release-assets/metrolist-desktop-windows-x64-${APP_VERSION}.zip"
@@ -678,7 +677,6 @@ jobs:
       - linux-jvm
       - linux-packages
       - macos
-      - ios
       - publish
       - finalize-sentry
     runs-on: blacksmith-2vcpu-ubuntu-2604
