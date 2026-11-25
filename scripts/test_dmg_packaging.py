@@ -121,7 +121,7 @@ tasks.register<PatchDmgAppearanceTask>("patch{index}") {{
         self.assertEqual(1, sum(command[:2] == ['hdiutil', 'convert'] for command in commands))
         case = self.root / 'detach-failure/dmgs'
         self.assertEqual('original image', (case / 'Metrolist.dmg').read_text())
-        mounts = list(case.glob('metrolist-bg-*/mount/mounted-data'))
+        mounts = list(case.glob('nyawitmusic-bg-*/mount/mounted-data'))
         self.assertEqual(1, len(mounts))
         self.assertEqual('retain me', mounts[0].read_text())
 
