@@ -118,7 +118,7 @@ jobs:
             target="dist/NyawitMusic-${{ needs.validate.outputs.version }}-${{ matrix.name }}-${arch}.${ext}"
             [[ "$f" == "$target" ]] || mv "$f" "$target"
           done
-          find dist -maxdepth 1 -type f -printf '%f %s bytes\n'
+          ls -lh dist/
           test -n "$(find dist -maxdepth 1 -type f -print -quit)" || { echo "::error::No installer collected" >&2; exit 1; }
       - uses: actions/upload-artifact@v4
         with:
