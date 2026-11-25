@@ -18,6 +18,11 @@ on:
         required: false
         default: ''
         type: string
+      artifact-suffix:
+        description: Suffix for the packaged AppImage filename, to keep JVM and native assets distinct
+        required: false
+        default: ''
+        type: string
       staging-release-tag:
         description: Draft release tag used for cross-job package handoff
         required: false
@@ -128,7 +133,7 @@ jobs:
             arm64) grep -Eiq 'aarch64|ARM64' <<< "$description" || { echo "Expected aarch64 AppImage, got: $description" >&2; exit 1; } ;;
             *) echo "Unsupported Linux artifact architecture: ${{ matrix.arch }}" >&2; exit 1 ;;
           esac
-          output="dist/metrolist-desktop-linux-${{ matrix.arch }}-${version}.AppImage"
+          output="dist/metrolist-desktop-linux-${{ matrix.arch }}${{ inputs.artifact-suffix }}-${version}.AppImage"
           mv "$source" "$output"
           echo "path=$output" >> "$GITHUB_OUTPUT"
 

@@ -18,7 +18,18 @@ echo [3/3] Deploying to Desktop App resources...
 set DEST=..\desktopApp\src\desktopMain\resources\windows
 if not exist "%DEST%" mkdir "%DEST%"
 
-copy /Y "bin\Release\net10.0-windows\win-x64\publish\metro-wv2-helper.exe" "%DEST%\"
+set SOURCE=bin\Release\net10.0-windows\win-x64\publish\metro-wv2-helper.exe
+if not exist "%SOURCE%" (
+    echo.
+    echo ERROR: Helper was not produced at %SOURCE%
+    exit /b 1
+)
+copy /Y "%SOURCE%" "%DEST%\"
+if %errorlevel% neq 0 (
+    echo.
+    echo ERROR: Failed to copy the helper to %DEST%
+    exit /b %errorlevel%
+)
 
 echo.
 echo SUCCESS: Helper deployed to %DEST%\metro-wv2-helper.exe
