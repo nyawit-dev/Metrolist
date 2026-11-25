@@ -418,7 +418,7 @@ androidComponents {
         variant.instrumentation.setAsmFramesComputationMode(FramesComputationMode.COMPUTE_FRAMES_FOR_INSTRUMENTED_METHODS)
         // Nyawit Music branding: branded APK file names (additive, no upstream behaviour removed).
         variant.outputs.forEach { output ->
-            output.outputFileName.set("NyawitMusic-${variant.name}-${appVersion}.apk")
+            output.outputFileName.set("NyawitMusic-${variant.name}-$appVersion.apk")
         }
     }
 }
