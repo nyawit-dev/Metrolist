@@ -135,3 +135,13 @@ jobs:
           else
             ./gradlew :desktopApp:assemble --no-daemon -Pmetrolist.sourceRevision=
           fi
+
+      - name: Upload desktop test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-test-reports
+          path: |
+            shared/build/test-results/desktopTest/*.xml
+            desktopApp/build/test-results/jvmTest/*.xml
+          if-no-files-found: ignore
