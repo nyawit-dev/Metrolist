@@ -512,6 +512,8 @@ jobs:
 
   distribution:
     name: Generate distribution recipes
+    # External distribution is opt-in; stable releases publish GitHub assets only by default.
+    if: vars.EXTERNAL_DISTRIBUTION == 'true'
     needs: [prepare, publish]
     runs-on: blacksmith-2vcpu-ubuntu-2604
     timeout-minutes: 15
@@ -552,6 +554,7 @@ jobs:
 
   propose-distribution:
     name: Propose ${{ matrix.kind }} update
+    if: vars.EXTERNAL_DISTRIBUTION == 'true'
     needs: [prepare, distribution]
     runs-on: blacksmith-2vcpu-ubuntu-2604
     timeout-minutes: 10
@@ -592,6 +595,7 @@ jobs:
 
   winget:
     name: Submit to WinGet
+    if: vars.EXTERNAL_DISTRIBUTION == 'true'
     needs: [prepare, publish]
     runs-on: blacksmith-2vcpu-ubuntu-2604
     timeout-minutes: 15
@@ -614,6 +618,7 @@ jobs:
 
   flatpark:
     name: Notify flatpark
+    if: vars.EXTERNAL_DISTRIBUTION == 'true'
     needs: publish
     runs-on: blacksmith-2vcpu-ubuntu-2604
     timeout-minutes: 5
@@ -628,6 +633,7 @@ jobs:
 
   homebrew:
     name: Update the Homebrew tap
+    if: vars.EXTERNAL_DISTRIBUTION == 'true'
     needs: publish
     runs-on: blacksmith-2vcpu-ubuntu-2604
     timeout-minutes: 5
