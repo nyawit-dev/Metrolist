@@ -131,7 +131,7 @@ jobs:
             if [[ '${{ inputs.compile }}' == 'true' ]]; then
               tasks+=(:desktopApp:compileKotlinJvm)
             fi
-            ./gradlew "${tasks[@]}" --no-daemon -Pmetrolist.sourceRevision=
+            ./gradlew "${tasks[@]}" --no-daemon --stacktrace -Pmetrolist.sourceRevision=
           else
             ./gradlew :desktopApp:assemble --no-daemon -Pmetrolist.sourceRevision=
           fi
