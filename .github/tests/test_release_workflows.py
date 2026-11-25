@@ -82,7 +82,7 @@ class ReleaseWorkflowsTest(unittest.TestCase):
                         if package.exists():
                             self.assertEqual(b'successful build output', package.read_bytes())
 
-    def test_stable_release_requires_and_checksums_ipa(self):
+    def test_stable_release_checksums_optional_ipa(self):
         script = step_script('release.yml', 'Validate and checksum release assets')
         assets = [
             'Metrolist.apk',
@@ -113,14 +113,15 @@ class ReleaseWorkflowsTest(unittest.TestCase):
                     env={**os.environ, 'APP_VERSION': '14.0.0', 'GITHUB_REPOSITORY': 'MetrolistGroup/Metrolist'},
                     capture_output=True, text=True,
                 )
-                self.assertEqual(result.returncode == 0, include_ipa, result.stderr)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                sums = (output / 'SHA256SUMS').read_text()
+                self.assertIn('Metrolist-with-Google-Cast.apk', sums)
                 if include_ipa:
-                    sums = (output / 'SHA256SUMS').read_text()
                     self.assertIn('Metrolist.ipa', sums)
-                    self.assertIn('Metrolist-with-Google-Cast.apk', sums)
                     self.assertIn('metrolist-altstore.json', sums)
                 else:
-                    self.assertIn('Missing release asset: release-assets/Metrolist.ipa', result.stderr)
+                    self.assertNotIn('Metrolist.ipa', sums)
+                    self.assertNotIn('metrolist-altstore.json', sums)
 
 if __name__ == '__main__':
     unittest.main()
