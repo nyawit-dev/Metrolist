@@ -57,6 +57,11 @@ jobs:
           submodules: recursive
           persist-credentials: false
 
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+
       - name: Validate Compose resources
         run: python3 scripts/check_compose_resource_escapes.py
 
