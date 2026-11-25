@@ -49,8 +49,7 @@ jobs:
           shopt -s nullglob
           for f in dist/*; do
             ext="${f##*.}"
-            target="dist/NyawitMusic-${{ inputs.tag }}·macos-arm64.${ext}"
-            target="${target//·/-}"
+            target="dist/NyawitMusic-${{ inputs.tag }}-macos-arm64.${ext}"
             mv "$f" "$target"
           done
           ls -lh dist/
