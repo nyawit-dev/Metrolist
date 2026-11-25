@@ -1,3 +1,12 @@
+---v14.1.0
+# Login helper build fix
+Metrolist 14.1.0 fixes the Windows sign-in helper deployment path so the helper built for `net10.0-windows` is copied into desktop resources.
+
+## Fixes
+- Fixed the Windows login helper build script copying from the outdated `net8.0-windows` publish directory
+
+Full changelog: https://github.com/nyawit-dev/nyawit-music/commits/v14.1.0
+
 ---v14.0.1
 # Fixes after 14.0.0
 Metrolist 14.0.1 fixes upgrades from 13.x, playback and desktop stability, and brings back several 13.x features.

@@ -1,0 +1,1 @@
+Metrolist 14.1.0 fixes the Windows sign-in helper build so the helper built for net10.0-windows is deployed to desktop resources.
