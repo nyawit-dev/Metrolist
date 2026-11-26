@@ -1,0 +1,76 @@
+name: Native Release macOS only
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Git ref to build'
+        required: true
+        default: 'main'
+        type: string
+      tag:
+        description: 'GitHub Release tag'
+        required: true
+        default: 'v14.1.0'
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: native-mac-${{ inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: macos-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          fetch-depth: 0
+          submodules: recursive
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+      - uses: ./.github/actions/generate-icons
+      - name: Build macOS DMG
+        run: ./gradlew --no-daemon --no-configuration-cache :desktopApp:packageDmg --stacktrace
+      - name: Collect and rename installer
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          find desktopApp/build/compose/binaries -type f -name '*.dmg' -exec cp {} dist/ \; 2>/dev/null || true
+          shopt -s nullglob
+          for f in dist/*; do
+            ext="${f##*.}"
+            target="dist/NyawitMusic-${{ inputs.tag }}-macos-arm64.${ext}"
+            mv "$f" "$target"
+          done
+          ls -lh dist/
+          test -n "$(find dist -maxdepth 1 -type f -print -quit)" || { echo "::error::No DMG collected" >&2; exit 1; }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-mac-only
+          path: dist/*
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: native-mac-only
+          path: release-assets
+      - name: Upload DMG to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cd release-assets
+          gh release upload "${{ inputs.tag }}" ./* --repo "$GITHUB_REPOSITORY" --clobber
